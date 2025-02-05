@@ -65,6 +65,18 @@ async function initApp() {
         console.log('开始加载依赖库...');
         await loadScript('lib/marked.min.js');
         await loadScript('lib/html2canvas.min.js');
+        await loadScript('lib/highlight/highlight.min.js');
+        // 加载语言包
+        await loadScript('lib/highlight/languages/go.min.js');
+        await loadScript('lib/highlight/languages/python.min.js');
+        await loadScript('lib/highlight/languages/javascript.min.js');
+        await loadScript('lib/highlight/languages/typescript.min.js');
+        await loadScript('lib/highlight/languages/bash.min.js');
+        await loadScript('lib/highlight/languages/shell.min.js');
+        await loadScript('lib/highlight/languages/xml.min.js');
+        await loadScript('lib/highlight/languages/css.min.js');
+        await loadScript('lib/highlight/languages/json.min.js');
+        await loadScript('lib/highlight/languages/yaml.min.js');
         console.log('依赖库加载完成');
         
         // 验证库是否加载成功
@@ -74,11 +86,27 @@ async function initApp() {
         if (typeof window.html2canvas === 'undefined') {
             throw new Error('html2canvas 库加载失败');
         }
+        if (typeof window.hljs === 'undefined') {
+            throw new Error('highlight.js 库加载失败');
+        }
+
+        // 初始化 highlight.js
+        hljs.highlightAll();
 
         // 配置 marked 选项
         marked.setOptions({
             breaks: true,
-            gfm: true
+            gfm: true,
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {
+                        console.error('代码高亮失败:', err);
+                    }
+                }
+                return code; // 使用默认转义
+            }
         });
 
         // 添加事件监听器，使用 removeEventListener 先移除可能存在的旧监听器
@@ -104,6 +132,21 @@ async function initApp() {
         // 初始化主题
         updateTheme();
 
+        // 添加标签页切换功能
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // 移除所有活动状态
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+                
+                // 设置当前标签页为活动状态
+                button.classList.add('active');
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(`${tabId}-preview`).classList.add('active');
+            });
+        });
+
     } catch (error) {
         console.error('初始化失败:', error);
     }
@@ -112,8 +155,27 @@ async function initApp() {
 // 更新预览函数
 function updatePreview() {
     if (!marked || !editor || !preview) return;
-    preview.innerHTML = marked.parse(editor.value);
+    
+    // 处理 think 标签
+    let content = editor.value.replace(
+        /<think>([\s\S]*?)<\/think>/g, 
+        (match, p1) => `<div class="thinking-section">${p1}</div>`
+    );
+    
+    preview.innerHTML = marked.parse(content);
+    
+    // 应用代码高亮
+    document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightElement(block);
+    });
+
+    // 处理纯文本预览
+    const previewText = document.getElementById('previewText');
     const plainText = editor.value
+        .replace(/<think>([\s\S]*?)<\/think>/g, (match, p1) => {
+            const lines = p1.trim().split('\n');
+            return `<div class="thinking-text">${lines.map(line => line).join('\n')}</div>`;
+        })
         .replace(/#{1,6}\s/g, '')
         .replace(/\*\*/g, '')
         .replace(/\*/g, '')
@@ -126,27 +188,47 @@ function updatePreview() {
         .replace(/~~([^~]+)~~/g, '$1')
         .replace(/\|/g, ' ')
         .replace(/^\s*[-=]{3,}\s*$/gm, '');
-    document.getElementById('previewText').textContent = plainText;
+    previewText.innerHTML = plainText; // 改为 innerHTML 以支持 HTML 标签
 }
 
 // 将按钮事件处理函数定义为全局函数
 window.copyAsText = async function() {
     if (!editor) return;
     try {
+        const includeThinking = document.getElementById('includeThinking').checked;
+        const onlyThinking = document.getElementById('onlyThinking').checked;
+        
+        let text = editor.value;
+        
+        if (onlyThinking) {
+            // 仅提取推理部分
+            const matches = text.match(/<think>([\s\S]*?)<\/think>/g);
+            if (matches) {
+                text = matches.map(match => 
+                    match.replace(/<think>([\s\S]*?)<\/think>/g, '$1').trim()
+                ).join('\n\n');
+            } else {
+                text = '';
+            }
+        } else if (!includeThinking) {
+            // 移除所有推理部分
+            text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        }
+        
         // 移除 Markdown 格式
-        const plainText = editor.value
-            .replace(/#{1,6}\s/g, '') // 移除标题符号
-            .replace(/\*\*/g, '') // 移除加粗符号
-            .replace(/\*/g, '') // 移除斜体符号
-            .replace(/`{1,3}/g, '') // 移除代码块符号
-            .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // 将链接转换为纯文本
-            .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '$1') // 移除图片标记
-            .replace(/^>\s/gm, '') // 移除引用符号
-            .replace(/^[-+*]\s/gm, '') // 移除无序列表符号
-            .replace(/^(\d+)\.\s/gm, '$1. ') // 保留有序列表数字
-            .replace(/~~([^~]+)~~/g, '$1') // 移除删除线
-            .replace(/\|/g, ' ') // 移除表格分隔符
-            .replace(/^\s*[-=]{3,}\s*$/gm, ''); // 移除分隔线
+        const plainText = text
+            .replace(/#{1,6}\s/g, '')
+            .replace(/\*\*/g, '')
+            .replace(/\*/g, '')
+            .replace(/`{1,3}/g, '')
+            .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+            .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '$1')
+            .replace(/^>\s/gm, '')
+            .replace(/^[-+*]\s/gm, '')
+            .replace(/^(\d+)\.\s/gm, '$1. ')
+            .replace(/~~([^~]+)~~/g, '$1')
+            .replace(/\|/g, ' ')
+            .replace(/^\s*[-=]{3,}\s*$/gm, '');
     
         await navigator.clipboard.writeText(plainText);
         alert('纯文本已复制到剪贴板！');
@@ -156,22 +238,55 @@ window.copyAsText = async function() {
     }
 }
 
+// 添加复选框联动逻辑
+document.getElementById('onlyThinking').addEventListener('change', function(e) {
+    if (e.target.checked) {
+        document.getElementById('includeThinking').checked = true;
+        document.getElementById('includeThinking').disabled = true;
+    } else {
+        document.getElementById('includeThinking').disabled = false;
+    }
+});
 window.copyAsImage = async function() {
     if (!html2canvas) return;
     try {
         const previewContainer = document.querySelector('.preview-container').cloneNode(true);
+        const preview = previewContainer.querySelector('#preview');
+        
+        // 应用推理过程过滤
+        const includeThinking = document.getElementById('includeThinking').checked;
+        const onlyThinking = document.getElementById('onlyThinking').checked;
+        
+        if (onlyThinking) {
+            // 仅保留推理部分
+            const thinkingSections = preview.querySelectorAll('.thinking-section');
+            preview.innerHTML = '';
+            thinkingSections.forEach(section => preview.appendChild(section));
+        } else if (!includeThinking) {
+            // 移除所有推理部分
+            preview.querySelectorAll('.thinking-section').forEach(el => el.remove());
+        }
+        
         previewContainer.style.position = 'fixed';
         previewContainer.style.left = '-9999px';
         previewContainer.style.top = '0';
+        previewContainer.style.width = '1200px';
+        previewContainer.style.height = 'auto';
         
         document.body.appendChild(previewContainer);
+        
+        // 等待一下确保样式已经应用
+        await new Promise(resolve => setTimeout(resolve, 100));
     
         const canvas = await html2canvas(previewContainer, {
             backgroundColor: '#ffffff',
             scale: 2,
             logging: false,
             useCORS: true,
-            allowTaint: true
+            allowTaint: true,
+            windowWidth: 1200,
+            height: previewContainer.scrollHeight, // 使用实际滚动高度
+            width: 1200
         });
     
         document.body.removeChild(previewContainer);
@@ -199,6 +314,22 @@ window.saveAsImage = async function() {
     if (!html2canvas) return;
     try {
         const previewContainer = document.querySelector('.preview-container').cloneNode(true);
+        const preview = previewContainer.querySelector('#preview');
+        
+        // 应用推理过程过滤
+        const includeThinking = document.getElementById('includeThinking').checked;
+        const onlyThinking = document.getElementById('onlyThinking').checked;
+        
+        if (onlyThinking) {
+            // 仅保留推理部分
+            const thinkingSections = preview.querySelectorAll('.thinking-section');
+            preview.innerHTML = '';
+            thinkingSections.forEach(section => preview.appendChild(section));
+        } else if (!includeThinking) {
+            // 移除所有推理部分
+            preview.querySelectorAll('.thinking-section').forEach(el => el.remove());
+        }
+        
         previewContainer.style.position = 'fixed';
         previewContainer.style.left = '-9999px';
         previewContainer.style.top = '0';
