@@ -1,0 +1,21 @@
+/* 代码块样式 */
+pre {
+    background-color: #f6f8fa;
+    border-radius: 6px;
+    padding: 16px;
+    overflow: auto;
+}
+
+code {
+    font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    margin: 0;
+    background-color: rgba(175, 184, 193, 0.2);
+    border-radius: 6px;
+}
+
+pre code {
+    background-color: transparent;
+    padding: 0;
+}

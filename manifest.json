@@ -1,0 +1,34 @@
+{
+    "manifest_version": 3,
+    "name": "吉光片语",
+    "version": "1.0",
+    "description": "将剪贴板中的 Markdown 内容转换为纯文本或图片",
+    "permissions": [
+      "clipboardRead",
+      "clipboardWrite",
+      "downloads",
+      "scripting",
+      "activeTab",
+      "notifications"
+    ],
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "icons": {
+      "48": "image.png",
+      "128": "image.png"
+    },
+    "background": {
+      "service_worker": "background.js"
+    },
+    "web_accessible_resources": [{
+      "resources": [
+        "lib/marked.min.js",
+        "lib/html2canvas.min.js",
+        "index.html",
+        "js/app.js",
+        "css/style.css"
+      ],
+      "matches": ["<all_urls>"]
+    }]
+}
