@@ -95,8 +95,11 @@ async function initApp() {
 
         // 配置 marked 选项
         marked.setOptions({
-            breaks: true,
+            breaks: true,  // 保留换行符
             gfm: true,
+            mangle: false,
+            headerIds: false,
+            headerPrefix: false,
             highlight: function(code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
                     try {
@@ -105,9 +108,27 @@ async function initApp() {
                         console.error('代码高亮失败:', err);
                     }
                 }
-                return code; // 使用默认转义
+                return code;
             }
         });
+
+        // 修改 marked 的渲染规则
+        const renderer = new marked.Renderer();
+        
+        // 重写段落渲染函数
+        renderer.paragraph = function(text) {
+            // 处理对象类型的输入
+            if (typeof text === 'object') {
+                text = text.text || String(text);
+            }
+            // 确保 text 是字符串并处理换行
+            text = String(text || '').replace(/\n/g, '<br>');
+            return '<p>' + text + '</p>';
+        };
+        
+        marked.use({ renderer });
+
+        // return code; // 使用默认转义
 
         // 添加事件监听器，使用 removeEventListener 先移除可能存在的旧监听器
         const copyTextBtn = document.getElementById('copyTextBtn');
@@ -173,8 +194,7 @@ function updatePreview() {
     const previewText = document.getElementById('previewText');
     const plainText = editor.value
         .replace(/<think>([\s\S]*?)<\/think>/g, (match, p1) => {
-            const lines = p1.trim().split('\n');
-            return `<div class="thinking-text">${lines.map(line => line).join('\n')}</div>`;
+            return `<div class="thinking-text">${p1}</div>`;
         })
         .replace(/#{1,6}\s/g, '')
         .replace(/\*\*/g, '')
@@ -187,8 +207,9 @@ function updatePreview() {
         .replace(/^(\d+)\.\s/gm, '$1. ')
         .replace(/~~([^~]+)~~/g, '$1')
         .replace(/\|/g, ' ')
-        .replace(/^\s*[-=]{3,}\s*$/gm, '');
-    previewText.innerHTML = plainText; // 改为 innerHTML 以支持 HTML 标签
+        .replace(/^\s*[-=]{3,}\s*$/gm, '')
+        .split('\n').join('<br>'); // 保留换行
+    previewText.innerHTML = plainText;
 }
 
 // 将按钮事件处理函数定义为全局函数
