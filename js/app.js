@@ -112,32 +112,21 @@ async function initApp() {
             }
         });
 
-        // 修改 marked 的渲染规则
-        const renderer = new marked.Renderer();
-        
-        // 重写段落渲染函数
-        renderer.paragraph = function(text) {
-            // 处理对象类型的输入
-            if (typeof text === 'object') {
-                text = text.text || String(text);
-            }
-            // 确保 text 是字符串并处理换行
-            text = String(text || '').replace(/\n/g, '<br>');
-            return '<p>' + text + '</p>';
-        };
-        
-        marked.use({ renderer });
-
         // return code; // 使用默认转义
 
         // 添加事件监听器，使用 removeEventListener 先移除可能存在的旧监听器
         const copyTextBtn = document.getElementById('copyTextBtn');
         const copyImageBtn = document.getElementById('copyImageBtn');
         const saveImageBtn = document.getElementById('saveImageBtn');
+        const fixFormatBtn = document.getElementById('fixFormatBtn');
         
         copyTextBtn.removeEventListener('click', window.copyAsText);
         copyImageBtn.removeEventListener('click', window.copyAsImage);
         saveImageBtn.removeEventListener('click', window.saveAsImage);
+        if (fixFormatBtn) {
+            fixFormatBtn.removeEventListener('click', window.fixAndCopyMarkdown);
+            fixFormatBtn.addEventListener('click', window.fixAndCopyMarkdown);
+        }
         
         copyTextBtn.addEventListener('click', window.copyAsText);
         copyImageBtn.addEventListener('click', window.copyAsImage);
@@ -173,6 +162,36 @@ async function initApp() {
     }
 }
 
+// 格式化 Markdown 函数
+function formatMarkdown(text) {
+    const parts = text.split('**');
+    let newText = '';
+    
+    for (let i = 0; i < parts.length; i++) {
+        newText += parts[i];
+        
+        if (i < parts.length - 1) {
+            // 偶数索引：后面是开始标记
+            if (i % 2 === 0) {
+                // 前面非空且非* -> 加空格
+                if (parts[i].length > 0 && /\S$/.test(parts[i]) && !/\*$/.test(parts[i])) {
+                    newText += ' ';
+                }
+                newText += '**';
+            } 
+            // 奇数索引：后面是结束标记
+            else {
+                newText += '**';
+                // 后面非空且非* -> 加空格
+                if (i + 1 < parts.length && parts[i+1].length > 0 && /^\S/.test(parts[i+1]) && !/^\*/.test(parts[i+1])) {
+                    newText += ' ';
+                }
+            }
+        }
+    }
+    return newText;
+}
+
 // 更新预览函数
 function updatePreview() {
     if (!marked || !editor || !preview) return;
@@ -182,6 +201,9 @@ function updatePreview() {
         /<think>([\s\S]*?)<\/think>/g, 
         (match, p1) => `<div class="thinking-section">${p1}</div>`
     );
+    
+    // 应用格式修复以确保正确渲染
+    // const formattedContent = formatMarkdown(content);
     
     preview.innerHTML = marked.parse(content);
     
@@ -496,6 +518,28 @@ async function saveAsImage() {
     } catch (err) {
         console.error('保存图片失败:', err);
         alert('保存图片失败');
+    }
+}
+
+// 添加修复格式并复制函数
+window.fixAndCopyMarkdown = async function() {
+    if (!editor) return;
+    try {
+        const text = editor.value;
+        const newText = formatMarkdown(text);
+        
+        // 更新编辑器内容
+        editor.value = newText;
+        // 触发预览更新
+        updatePreview();
+        
+        // 复制到剪贴板
+        await navigator.clipboard.writeText(newText);
+        alert('格式已修复并复制到剪贴板！');
+        
+    } catch (err) {
+        console.error('修复格式失败:', err);
+        alert('修复格式失败');
     }
 }
 
