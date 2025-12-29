@@ -36,6 +36,7 @@ document.getElementById('fixFormat').addEventListener('click', async () => {
             // 偶数索引：后面是开始标记
             if (i % 2 === 0) {
                 // 前面非空且非* -> 加空格
+                // \S 匹配包括中文在内的非空白字符
                 if (parts[i].length > 0 && /\S$/.test(parts[i]) && !/\*$/.test(parts[i])) {
                     newText += ' ';
                 }

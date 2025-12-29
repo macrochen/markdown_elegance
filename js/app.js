@@ -174,6 +174,7 @@ function formatMarkdown(text) {
             // 偶数索引：后面是开始标记
             if (i % 2 === 0) {
                 // 前面非空且非* -> 加空格
+                // 显式添加对括号的检查，尽管 \S 已经包含
                 if (parts[i].length > 0 && /\S$/.test(parts[i]) && !/\*$/.test(parts[i])) {
                     newText += ' ';
                 }
@@ -183,6 +184,7 @@ function formatMarkdown(text) {
             else {
                 newText += '**';
                 // 后面非空且非* -> 加空格
+                // 显式添加对括号的检查，尽管 \S 已经包含
                 if (i + 1 < parts.length && parts[i+1].length > 0 && /^\S/.test(parts[i+1]) && !/^\*/.test(parts[i+1])) {
                     newText += ' ';
                 }
