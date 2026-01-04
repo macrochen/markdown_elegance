@@ -142,6 +142,23 @@ async function initApp() {
         // 初始化主题
         updateTheme();
 
+        // 尝试自动读取剪贴板内容
+        try {
+            // 给一点延迟确保页面完全聚焦
+            setTimeout(async () => {
+                const text = await navigator.clipboard.readText();
+                if (text && !editor.value) {
+                    editor.value = text;
+                    // 自动修复格式（可选，但既然为了方便，可以顺便修复一下）
+                    // editor.value = formatMarkdown(text); 
+                    updatePreview();
+                    console.log('已自动从剪贴板加载内容');
+                }
+            }, 300);
+        } catch (err) {
+            console.log('自动读取剪贴板失败(可能需要用户交互):', err);
+        }
+
         // 添加标签页切换功能
         const tabButtons = document.querySelectorAll('.tab-button');
         tabButtons.forEach(button => {

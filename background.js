@@ -1,3 +1,8 @@
+// 点击扩展图标打开主页
+chrome.action.onClicked.addListener((tab) => {
+  chrome.tabs.create({ url: 'index.html' });
+});
+
 // 处理来自 popup 的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {

@@ -12,7 +12,6 @@
       "notifications"
     ],
     "action": {
-      "default_popup": "popup.html"
     },
     "icons": {
       "48": "image.png",
