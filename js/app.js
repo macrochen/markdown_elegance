@@ -119,6 +119,10 @@ async function initApp() {
         const copyImageBtn = document.getElementById('copyImageBtn');
         const saveImageBtn = document.getElementById('saveImageBtn');
         const fixFormatBtn = document.getElementById('fixFormatBtn');
+        const saveDraftBtn = document.getElementById('saveDraftBtn');
+        const manageDraftsBtn = document.getElementById('manageDraftsBtn');
+        const closeModalBtn = document.querySelector('.close-modal');
+        const draftsModal = document.getElementById('draftsModal');
         
         copyTextBtn.removeEventListener('click', window.copyAsText);
         copyImageBtn.removeEventListener('click', window.copyAsImage);
@@ -131,6 +135,26 @@ async function initApp() {
         copyTextBtn.addEventListener('click', window.copyAsText);
         copyImageBtn.addEventListener('click', window.copyAsImage);
         saveImageBtn.addEventListener('click', window.saveAsImage);
+
+        // Drafts listeners
+        if (saveDraftBtn) {
+            saveDraftBtn.removeEventListener('click', window.saveDraft);
+            saveDraftBtn.addEventListener('click', window.saveDraft);
+        }
+        if (manageDraftsBtn) {
+            manageDraftsBtn.removeEventListener('click', window.manageDrafts);
+            manageDraftsBtn.addEventListener('click', window.manageDrafts);
+        }
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', window.closeDraftsModal);
+        }
+        if (draftsModal) {
+            window.addEventListener('click', (event) => {
+                if (event.target == draftsModal) {
+                    window.closeDraftsModal();
+                }
+            });
+        }
 
         editor.removeEventListener('input', updatePreview);
         editor.addEventListener('input', updatePreview);
@@ -561,6 +585,136 @@ window.fixAndCopyMarkdown = async function() {
         alert('修复格式失败');
     }
 }
+
+// 草稿功能相关函数
+window.saveDraft = function() {
+    if (!editor) return;
+    const text = editor.value.trim();
+    if (!text) {
+        alert('没有内容可以保存');
+        return;
+    }
+
+    // 获取第一行作为默认文件名
+    const firstLine = text.split('\n')[0].trim();
+    let defaultName = firstLine.substring(0, 30); // 截取前30个字符
+    if (defaultName.length === 0) defaultName = '未命名草稿';
+    
+    const name = prompt('请输入草稿名称:', defaultName);
+    if (!name) return; // 用户取消
+
+    const draftId = 'md_draft_' + Date.now();
+    const draftData = {
+        id: draftId,
+        name: name,
+        content: editor.value, // 保存原始内容，包括空格和换行
+        date: new Date().toISOString()
+    };
+
+    try {
+        localStorage.setItem(draftId, JSON.stringify(draftData));
+        alert('草稿已保存！');
+    } catch (e) {
+        console.error('保存草稿失败:', e);
+        alert('保存草稿失败，可能是存储空间不足。');
+    }
+};
+
+window.manageDrafts = function() {
+    const modal = document.getElementById('draftsModal');
+    if (modal) {
+        window.renderDraftsList();
+        modal.style.display = 'block';
+    }
+};
+
+window.closeDraftsModal = function() {
+    const modal = document.getElementById('draftsModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+window.renderDraftsList = function() {
+    const listContainer = document.getElementById('draftsList');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+    const drafts = [];
+
+    // 遍历 localStorage 查找草稿
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('md_draft_')) {
+            try {
+                const data = JSON.parse(localStorage.getItem(key));
+                drafts.push(data);
+            } catch (e) {
+                console.warn('无法解析草稿数据:', key);
+            }
+        }
+    }
+
+    // 按时间倒序排序
+    drafts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (drafts.length === 0) {
+        listContainer.innerHTML = '<div class="no-drafts">暂无保存的草稿</div>';
+        return;
+    }
+
+    drafts.forEach(draft => {
+        const item = document.createElement('div');
+        item.className = 'draft-item';
+        
+        // 格式化日期
+        const dateObj = new Date(draft.date);
+        const dateStr = dateObj.toLocaleString('zh-CN', {
+            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+
+        // 预览文字
+        const previewText = draft.content.substring(0, 50).replace(/\n/g, ' ') + '...';
+
+        item.innerHTML = `
+            <div class="draft-info">
+                <div class="draft-name">${draft.name} <span class="draft-date">${dateStr}</span></div>
+                <div class="draft-preview">${previewText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            </div>
+            <div class="draft-actions">
+                <button class="draft-btn load" onclick="window.loadDraft('${draft.id}')">加载</button>
+                <button class="draft-btn delete" onclick="window.deleteDraft('${draft.id}')">删除</button>
+            </div>
+        `;
+        listContainer.appendChild(item);
+    });
+};
+
+window.loadDraft = function(id) {
+    try {
+        const dataStr = localStorage.getItem(id);
+        if (!dataStr) {
+            alert('找不到该草稿');
+            return;
+        }
+        const data = JSON.parse(dataStr);
+        if (confirm('加载草稿将覆盖当前编辑器内容，确定要继续吗？')) {
+            editor.value = data.content;
+            updatePreview();
+            window.closeDraftsModal();
+        }
+    } catch (e) {
+        console.error('加载草稿失败:', e);
+        alert('加载草稿失败');
+    }
+};
+
+window.deleteDraft = function(id) {
+    if (confirm('确定要删除这个草稿吗？此操作无法撤销。')) {
+        localStorage.removeItem(id);
+        window.renderDraftsList();
+    }
+};
 
 // 等待 DOM 加载完成后初始化
 if (document.readyState === 'loading') {

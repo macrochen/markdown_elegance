@@ -234,8 +234,12 @@
         .controls {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 10px;
             justify-content: center;
+            flex-wrap: wrap; /* 允许换行 */
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
         }
 
         .theme-selector {
@@ -243,22 +247,44 @@
         }
 
         .theme-selector select {
-            padding: 10px 20px;
+            padding: 0 15px;
             border-radius: 4px;
             border: 1px solid #ddd;
             font-size: 14px;
             background: white;
-            min-width: 150px;
-            height: 42px;
+            min-width: 120px;
+            height: 36px;
             box-sizing: border-box;
         }
 
         .controls button {
             margin: 0;
-            height: 42px;
+            height: 36px;
             box-sizing: border-box;
-            padding: 0 20px;
-            font-size: 14px;
+            padding: 0 15px;
+            font-size: 13px;
+            white-space: nowrap; /* 禁止文字换行 */
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .controls button:hover {
+            background: #f0f0f0;
+            border-color: #ccc;
+        }
+
+        #saveDraftBtn {
+            background: #e8f0fe;
+            border-color: #1a73e8;
+            color: #1a73e8;
+        }
+
+        #saveDraftBtn:hover {
+            background: #1a73e8;
+            color: white;
         }
     </style>
 </head>
@@ -282,6 +308,8 @@
             <button id="copyImageBtn">复制为图片</button>
             <button id="saveImageBtn">保存为图片</button>
             <button id="fixFormatBtn">修复格式并复制</button>
+            <button id="saveDraftBtn">保存草稿</button>
+            <button id="manageDraftsBtn">管理草稿</button>
         </div>
 
         <style>
@@ -328,6 +356,19 @@
                 <div id="text-preview" class="tab-pane">
                     <div class="preview-text" id="previewText"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drafts Modal -->
+    <div id="draftsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>已保存的草稿</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div id="draftsList" class="drafts-list">
+                <!-- Draft items will be populated here -->
             </div>
         </div>
     </div>
