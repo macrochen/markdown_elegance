@@ -205,34 +205,65 @@ async function initApp() {
 
 // 格式化 Markdown 函数
 function formatMarkdown(text) {
-    const parts = text.split('**');
-    let newText = '';
+    // 1. 将所有半角波浪号替换为全角，防止误触发 Markdown 删除线格式，且更符合中文排版
+    let processedText = text.replace(/~/g, '～');
+
+    // 辅助函数：判断字符类型
+    const isCJK = (char) => /[\u4e00-\u9fa5]/.test(char);
     
-    for (let i = 0; i < parts.length; i++) {
-        newText += parts[i];
-        
-        if (i < parts.length - 1) {
-            // 偶数索引：后面是开始标记
-            if (i % 2 === 0) {
-                // 前面非空且非* -> 加空格
-                // 显式添加对括号的检查，尽管 \S 已经包含
-                if (parts[i].length > 0 && /\S$/.test(parts[i]) && !/\*$/.test(parts[i])) {
-                    newText += ' ';
+    // 基础触发字符：英文、数字、以及半角标点
+    const isBasicTrigger = (char) => /[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':",./<>?]/.test(char);
+    
+    // 特殊符号：括号（全/半）、单引号（全/半）、双引号（全）
+    const specialSymbolsRegex = /[()（）'‘’“”]/;
+
+    // 使用正则表达式匹配 **内容**
+    // (?!\*) 确保不会误匹配 *** 这种水平分割线
+    return processedText.replace(/\*\*(?!\*)(.+?)\*\*/g, (match, content, offset, fullText) => {
+        // 1. 处理内部：去除首尾空格，确保紧凑
+        const trimmedContent = content.trim();
+        if (!trimmedContent) return '****';
+
+        const hasSpecial = specialSymbolsRegex.test(trimmedContent);
+        const firstChar = trimmedContent[0];
+        const lastChar = trimmedContent[trimmedContent.length - 1];
+
+        let prefix = '';
+        let suffix = '';
+
+        // 2. 处理外部（前）：检查是否需要在 ** 前面加空格
+        if (offset > 0) {
+            const charBefore = fullText[offset - 1];
+            // 触发条件：[中文 + (基础触发字符 或 含有特殊符号的块)]
+            if (isCJK(charBefore)) {
+                if (isBasicTrigger(firstChar) || hasSpecial) {
+                    prefix = ' ';
                 }
-                newText += '**';
-            } 
-            // 奇数索引：后面是结束标记
-            else {
-                newText += '**';
-                // 后面非空且非* -> 加空格
-                // 显式添加对括号的检查，尽管 \S 已经包含
-                if (i + 1 < parts.length && parts[i+1].length > 0 && /^\S/.test(parts[i+1]) && !/^\*/.test(parts[i+1])) {
-                    newText += ' ';
+            } else if (isBasicTrigger(charBefore)) {
+                if (isCJK(firstChar)) {
+                    prefix = ' ';
                 }
             }
         }
-    }
-    return newText;
+        
+        // 3. 处理外部（后）：检查是否需要在 ** 后面加空格
+        const nextOffset = offset + match.length;
+        if (nextOffset < fullText.length) {
+            const charAfter = fullText[nextOffset];
+            // 触发条件：[(基础触发字符 或 含有特殊符号的块) + 中文]
+            if (isCJK(charAfter)) {
+                if (isBasicTrigger(lastChar) || hasSpecial) {
+                    suffix = ' ';
+                }
+            } else if (isBasicTrigger(charAfter)) {
+                if (isCJK(lastChar)) {
+                    suffix = ' ';
+                }
+            }
+        }
+        
+        return prefix + '**' + trimmedContent + '**' + suffix;
+    });
 }
 
 // 更新预览函数
