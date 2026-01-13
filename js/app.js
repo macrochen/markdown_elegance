@@ -77,6 +77,8 @@ async function initApp() {
         await loadScript('lib/highlight/languages/css.min.js');
         await loadScript('lib/highlight/languages/json.min.js');
         await loadScript('lib/highlight/languages/yaml.min.js');
+        // 加载 KaTeX
+        await loadScript('lib/katex/katex.min.js');
         console.log('依赖库加载完成');
         
         // 验证库是否加载成功
@@ -89,9 +91,72 @@ async function initApp() {
         if (typeof window.hljs === 'undefined') {
             throw new Error('highlight.js 库加载失败');
         }
+        if (typeof window.katex === 'undefined') {
+            console.error('KaTeX 加载失败，公式将无法渲染');
+        }
 
         // 初始化 highlight.js
         hljs.highlightAll();
+
+        // 配置 marked 扩展以支持 KaTeX
+        if (typeof window.katex !== 'undefined' && marked.use) {
+            marked.use({
+                extensions: [
+                    {
+                        name: 'blockMath',
+                        level: 'block',
+                        start(src) { return src.indexOf('$$'); },
+                        tokenizer(src) {
+                            const rule = /^\$\$([\s\S]*?)\$\$/;
+                            const match = rule.exec(src);
+                            if (match) {
+                                return {
+                                    type: 'blockMath',
+                                    raw: match[0],
+                                    text: match[1].trim()
+                                };
+                            }
+                        },
+                        renderer(token) {
+                            try {
+                                return katex.renderToString(token.text, {
+                                    displayMode: true,
+                                    throwOnError: false
+                                });
+                            } catch (err) {
+                                return token.raw;
+                            }
+                        }
+                    },
+                    {
+                        name: 'inlineMath',
+                        level: 'inline',
+                        start(src) { return src.indexOf('$'); },
+                        tokenizer(src) {
+                            const rule = /^\$([^$\n]+?)\$/;
+                            const match = rule.exec(src);
+                            if (match) {
+                                return {
+                                    type: 'inlineMath',
+                                    raw: match[0],
+                                    text: match[1].trim()
+                                };
+                            }
+                        },
+                        renderer(token) {
+                            try {
+                                return katex.renderToString(token.text, {
+                                    displayMode: false,
+                                    throwOnError: false
+                                });
+                            } catch (err) {
+                                return token.raw;
+                            }
+                        }
+                    }
+                ]
+            });
+        }
 
         // 配置 marked 选项
         marked.setOptions({
