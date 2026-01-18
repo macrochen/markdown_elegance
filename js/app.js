@@ -219,6 +219,20 @@ async function initApp() {
                     window.closeDraftsModal();
                 }
             });
+
+            // Add delegated event listener for draft list buttons
+            const draftsList = document.getElementById('draftsList');
+            if (draftsList) {
+                draftsList.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('load')) {
+                        const id = e.target.getAttribute('data-id');
+                        if (id) window.loadDraft(id);
+                    } else if (e.target.classList.contains('delete')) {
+                        const id = e.target.getAttribute('data-id');
+                        if (id) window.deleteDraft(id);
+                    }
+                });
+            }
         }
 
         editor.removeEventListener('input', updatePreview);
@@ -778,8 +792,8 @@ window.renderDraftsList = function() {
                 <div class="draft-preview">${previewText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
             </div>
             <div class="draft-actions">
-                <button class="draft-btn load" onclick="window.loadDraft('${draft.id}')">加载</button>
-                <button class="draft-btn delete" onclick="window.deleteDraft('${draft.id}')">删除</button>
+                <button class="draft-btn load" data-id="${draft.id}">加载</button>
+                <button class="draft-btn delete" data-id="${draft.id}">删除</button>
             </div>
         `;
         listContainer.appendChild(item);

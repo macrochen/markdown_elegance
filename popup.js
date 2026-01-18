@@ -1,4 +1,3 @@
-
 // 辅助函数：显示通知
 function showNotification(message) {
   // 创建一个临时的提示元素
