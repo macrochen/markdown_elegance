@@ -349,14 +349,19 @@ function formatMarkdown(text) {
 function updatePreview() {
     if (!marked || !editor || !preview) return;
     
-    // 处理 think 标签
-    let content = editor.value.replace(
+    // 1. 获取原始内容
+    let content = editor.value;
+
+    // 2. 预处理表格中的换行符问题
+    // 将 "\n<br>" 或 "<br>\n" 甚至 "\n<br>\n" 替换为单纯的 "<br>"
+    // 这样可以将因为手动回车而被断开的 Markdown 表格行重新连起来
+    content = content.replace(/(\r\n|\n|\r)?<br\s*\/?>(\r\n|\n|\r)?/gi, '<br>');
+
+    // 3. 处理 think 标签
+    content = content.replace(
         /<think>([\s\S]*?)<\/think>/g, 
         (match, p1) => `<div class="thinking-section">${p1}</div>`
     );
-    
-    // 应用格式修复以确保正确渲染
-    // const formattedContent = formatMarkdown(content);
     
     preview.innerHTML = marked.parse(content);
     
