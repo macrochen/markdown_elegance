@@ -44,12 +44,61 @@ function loadScript(url) {
     });
 }
 
+// 显示复制成功提示
+function showTooltip(x, y, message = 'Copied!') {
+    const tooltip = document.createElement('div');
+    tooltip.textContent = message;
+    tooltip.style.cssText = `
+        position: fixed;
+        left: ${x}px;
+        top: ${y - 30}px;
+        background: #333;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10000;
+    `;
+    document.body.appendChild(tooltip);
+    
+    // 强制重绘以触发 transition
+    requestAnimationFrame(() => {
+        tooltip.style.opacity = '1';
+        tooltip.style.transform = 'translateY(-5px)';
+    });
+
+    setTimeout(() => {
+        tooltip.style.opacity = '0';
+        setTimeout(() => tooltip.remove(), 200);
+    }, 1000);
+}
+
 // 初始化应用
 async function initApp() {
     try {
         // 先获取 DOM 元素
         editor = document.getElementById('editor');
         preview = document.getElementById('preview');
+
+        // 添加选中即复制功能
+        if (preview) {
+            preview.addEventListener('mouseup', async (e) => {
+                const selection = window.getSelection();
+                const text = selection.toString().trim();
+                
+                if (text.length > 0) {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        showTooltip(e.clientX, e.clientY);
+                    } catch (err) {
+                        console.error('自动复制失败:', err);
+                    }
+                }
+            });
+        }
 
         // 检查是否在 Chrome 扩展环境中
         if (typeof chrome !== 'undefined' && chrome.runtime) {
